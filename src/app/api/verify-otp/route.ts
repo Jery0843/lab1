@@ -129,20 +129,31 @@ export async function POST(request: NextRequest) {
       userAgent
     ).run();
 
-    // Get machine writeup
+    // Try to get HTB machine writeup first
     const machineStmt = await db.prepare('SELECT writeup FROM htb_machines WHERE id = ?');
     const machine = await machineStmt.bind(machineId).first();
 
-    if (!machine || !machine.writeup) {
-      return NextResponse.json(
-        { error: 'Writeup not found' },
-        { status: 404 }
-      );
+    if (machine && machine.writeup) {
+      return NextResponse.json({
+        success: true,
+        writeup: machine.writeup
+      });
+    }
+
+    // If not found in HTB machines, try CTF writeups
+    const ctfStmt = await db.prepare('SELECT writeup FROM ctf_writeups WHERE id = ?');
+    const ctfWriteup = await ctfStmt.bind(machineId).first();
+
+    if (ctfWriteup && ctfWriteup.writeup) {
+      return NextResponse.json({
+        success: true,
+        writeup: ctfWriteup.writeup
+      });
     }
 
     return NextResponse.json({
       success: true,
-      writeup: machine.writeup
+      message: 'OTP verified successfully'
     });
 
   } catch (error) {
