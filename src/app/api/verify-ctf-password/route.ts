@@ -1,6 +1,31 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { CTFWriteupsDB } from '@/lib/db';
+import { CTFWriteupsDB, getDatabase } from '@/lib/db';
 import { emailService } from '@/lib/email-service';
+import crypto from 'crypto';
+
+// Get location data from IP
+async function getLocationFromIP(ip: string) {
+  try {
+    const response = await fetch(`http://ip-api.com/json/${ip}`);
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      return {
+        country: data.country || 'Unknown',
+        region: data.regionName || 'Unknown',
+        city: data.city || 'Unknown'
+      };
+    }
+  } catch (error) {
+    console.error('Error getting location:', error);
+  }
+  
+  return {
+    country: 'Unknown',
+    region: 'Unknown', 
+    city: 'Unknown'
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,48 +111,82 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Verify OTP
-      try {
-        const otpResponse = await fetch(`${request.nextUrl.origin}/api/verify-otp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-forwarded-for': request.headers.get('x-forwarded-for') || '',
-            'x-real-ip': request.headers.get('x-real-ip') || '',
-            'user-agent': request.headers.get('user-agent') || ''
-          },
-          body: JSON.stringify({
-            email,
-            otp,
-            machineId: writeupId,
-            name,
-            verificationToken
-          })
-        });
-
-        const otpData = await otpResponse.json();
-        
-        if (!otpResponse.ok || !otpData.success) {
-          return NextResponse.json(
-            { error: otpData.error || 'Invalid OTP' },
-            { status: 401 }
-          );
-        }
-      } catch (error) {
-        console.error('Error verifying OTP:', error);
+      // Verify OTP directly
+      const clientIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+      const userAgent = request.headers.get('user-agent') || 'unknown';
+      
+      const db = getDatabase();
+      if (!db) {
         return NextResponse.json(
-          { error: 'Failed to verify OTP' },
-          { status: 500 }
+          { error: 'Database not available' },
+          { status: 503 }
         );
       }
 
-      // Log access attempt
+      // Hash the provided OTP to compare with stored hash
+      const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+
+      // Verify OTP
+      const otpStmt = await db.prepare(`
+        SELECT * FROM otp_verification 
+        WHERE email = ? AND otp_code = ? AND expires_at > datetime('now') AND verified = 0
+        ORDER BY created_at DESC LIMIT 1
+      `);
+      const otpRecord = await otpStmt.bind(email, hashedOtp).first();
+
+      if (!otpRecord) {
+        return NextResponse.json(
+          { error: 'Invalid or expired OTP' },
+          { status: 401 }
+        );
+      }
+
+      // Mark OTP as verified
+      const markVerifiedStmt = await db.prepare('UPDATE otp_verification SET verified = 1 WHERE id = ?');
+      await markVerifiedStmt.bind(otpRecord.id).run();
+
+      // Get member details - check if active
+      const memberStmt = await db.prepare('SELECT * FROM members WHERE email = ? AND status = "active"');
+      const member = await memberStmt.bind(email).first();
+
+      if (!member) {
+        return NextResponse.json(
+          { error: 'Access denied - inactive membership' },
+          { status: 403 }
+        );
+      }
+
+      // Get location data
+      const location = await getLocationFromIP(clientIP);
+
+      // Update member with location if not set
+      if (member && (!member.country || !member.region || !member.city)) {
+        const updateLocationStmt = await db.prepare(`
+          UPDATE members 
+          SET country = COALESCE(country, ?), region = COALESCE(region, ?), city = COALESCE(city, ?) 
+          WHERE email = ?
+        `);
+        await updateLocationStmt.bind(location.country, location.region, location.city, email).run();
+      }
+
+      // Log writeup access
+      const logAccessStmt = await db.prepare(`
+        INSERT INTO writeup_access_logs (machine_id, email, name, ip_address, country, region, city, user_agent)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      await logAccessStmt.bind(
+        writeupId,
+        email,
+        name || member?.name || 'Unknown',
+        clientIP,
+        location.country,
+        location.region,
+        location.city,
+        userAgent
+      ).run();
+
+      // Send email notification about writeup access
       try {
-        const clientIP = request.headers.get('x-forwarded-for') || 
-                        request.headers.get('x-real-ip') || 
-                        'unknown';
-        
-        // Send email notification about writeup access
         if (email) {
           emailService.sendWriteupAccessNotification(
             writeup.title,
@@ -140,7 +199,7 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (error) {
-        console.error('Error logging writeup access:', error);
+        console.error('Error sending email notification:', error);
       }
 
       // Return the writeup data for complete step
