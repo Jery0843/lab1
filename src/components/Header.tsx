@@ -243,6 +243,14 @@ const Header = () => {
               >
                 ./about
               </Link>
+              <Link 
+                href="https://jerome.is-a.dev/contact" 
+                className="hover:text-cyber-blue transition-colors duration-300 text-sm xl:text-base"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                ./contact
+              </Link>
             </nav>
 
             {/* Desktop Theme, Admin & Search */}
@@ -347,6 +355,15 @@ const Header = () => {
                 >
                   ./about
                 </Link>
+                <Link 
+                  href="https://jerome.is-a.dev/contact" 
+                  className="text-sm hover:text-cyber-blue transition-colors py-2"
+                  onClick={() => setShowMobileMenu(false)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ./contact
+                </Link>
                 
                 {/* Mobile Admin Button */}
                 <div className="pt-3 border-t border-cyber-green/30 mt-3">
@@ -382,6 +399,7 @@ const Header = () => {
             <Link href="/tools" className="text-xs sm:text-sm hover:text-cyber-blue transition-colors">./tools</Link>
 
             <Link href="/about" className="text-xs sm:text-sm hover:text-cyber-blue transition-colors">./about</Link>
+            <Link href="https://jerome.is-a.dev/contact" className="text-xs sm:text-sm hover:text-cyber-blue transition-colors" target="_blank" rel="noopener noreferrer">./contact</Link>
             
             {/* Tablet Admin Button */}
             <button 
