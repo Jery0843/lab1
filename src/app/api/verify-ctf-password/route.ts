@@ -92,12 +92,16 @@ export async function POST(request: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-forwarded-for': request.headers.get('x-forwarded-for') || '',
+            'x-real-ip': request.headers.get('x-real-ip') || '',
+            'user-agent': request.headers.get('user-agent') || ''
           },
           body: JSON.stringify({
             email,
             otp,
             machineId: writeupId,
-            name
+            name,
+            verificationToken
           })
         });
 
@@ -116,10 +120,8 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         );
       }
-    }
 
-    // Log access attempt
-    if (step === 'complete') {
+      // Log access attempt
       try {
         const clientIP = request.headers.get('x-forwarded-for') || 
                         request.headers.get('x-real-ip') || 
@@ -140,28 +142,38 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         console.error('Error logging writeup access:', error);
       }
+
+      // Return the writeup data for complete step
+      return NextResponse.json({
+        success: true,
+        message: 'Access granted successfully',
+        writeup: {
+          id: writeup.id,
+          title: writeup.title,
+          slug: writeup.slug,
+          ctfName: writeup.ctf_name,
+          ctf_name: writeup.ctf_name,
+          category: writeup.category,
+          difficulty: writeup.difficulty,
+          points: writeup.points,
+          status: writeup.status,
+          isActive: Boolean(writeup.is_active),
+          is_active: writeup.is_active,
+          dateCompleted: writeup.date_completed,
+          date_completed: writeup.date_completed,
+          tags: writeup.tags ? (typeof writeup.tags === 'string' ? JSON.parse(writeup.tags) : writeup.tags) : [],
+          writeup: writeup.writeup,
+          summary: writeup.summary,
+          flag: writeup.flag
+        }
+      });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Password verified successfully',
-      writeup: {
-        id: writeup.id,
-        title: writeup.title,
-        slug: writeup.slug,
-        ctfName: writeup.ctf_name,
-        category: writeup.category,
-        difficulty: writeup.difficulty,
-        points: writeup.points,
-        status: writeup.status,
-        isActive: Boolean(writeup.is_active),
-        dateCompleted: writeup.date_completed,
-        tags: writeup.tags ? (typeof writeup.tags === 'string' ? JSON.parse(writeup.tags) : writeup.tags) : [],
-        writeup: writeup.writeup,
-        summary: writeup.summary,
-        flag: writeup.flag
-      }
-    });
+    // This should not be reached for valid steps
+    return NextResponse.json(
+      { error: 'Invalid verification step' },
+      { status: 400 }
+    );
 
   } catch (error) {
     console.error('Error verifying CTF password:', error);
