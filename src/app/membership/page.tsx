@@ -36,11 +36,11 @@ const Membership = () => {
             </p>
             <br />
             <p className="text-gray-800 dark:text-gray-300 leading-relaxed">
-              To comply with HackTheBox&apos;s updated security guidelines, all active machine writeups on my platform are now password-protected. Each machine has its own unique password to keep the content secure and exclusive for members. This protects the learning integrity of HackTheBox and ensures your access remains safe.
+              To comply with security guidelines, all active machine writeups on my platform are now password-protected. Each machine has its own unique password to keep the content secure and exclusive for members. This protects the learning integrity of HackTheBox and ensures your access remains safe.
             </p>
             <br />
             <p className="text-gray-800 dark:text-gray-300 leading-relaxed text-center font-semibold">
-              <span className="text-green-600 dark:text-cyber-green">Membership starts at $1.5</span>, giving you full access to all passwords and exclusive writeups.
+              <span className="text-green-600 dark:text-cyber-green">Membership starts at $1.5</span>, giving you full access to all passwords and exclusive writeups. Please avoid alias emails when subscribing.
             </p>
           </div>
 
