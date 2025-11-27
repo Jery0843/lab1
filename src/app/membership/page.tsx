@@ -40,7 +40,7 @@ const Membership = () => {
             </p>
             <br />
             <p className="text-gray-800 dark:text-gray-300 leading-relaxed text-center font-semibold">
-              <span className="text-green-600 dark:text-cyber-green">Membership starts at $1.5</span>, giving you full access to all passwords and exclusive writeups. Please avoid alias emails when subscribing.
+              <span className="text-green-600 dark:text-cyber-green">Membership</span>, will give you full access to all passwords and exclusive writeups. Please avoid alias emails when subscribing.
             </p>
           </div>
 
